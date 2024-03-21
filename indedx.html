@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CSV Data Display with Search from Google Sheets</title>
+    <style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* 使用现代、清晰的字体 */
+        color: #333; /* 深灰色文字，增加可读性 */
+        background-color: #f4f4f4; /* 轻灰色背景，减少视觉疲劳 */
+        padding: 20px; /* 页面内边距 */
+        line-height: 1.6; /* 行间距 */
+    }
+
+    h2 {
+        color: #444; /* 稍微深一点的标题颜色 */
+        margin-bottom: 20px; /* 标题与内容之间的间距 */
+    }
+
+    #searchBox {
+        width: 100%; /* 搜索框宽度全满 */
+        max-width: 400px; /* 最大宽度，保持美观 */
+        padding: 10px;
+        margin-bottom: 20px;
+        border: 2px solid #ddd; /* 边框颜色更浅，更细腻 */
+        border-radius: 5px; /* 圆角边框 */
+        font-size: 16px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 添加轻微的阴影，增加立体感 */
+    }
+
+    table {
+        width: 100%; /* 表格宽度全满 */
+        border-collapse: collapse; /* 移除内部边距 */
+        margin-top: 20px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 为表格添加阴影 */
+    }
+
+    th, td {
+        padding: 10px;
+        border: 1px solid #ddd; /* 更浅的边框颜色 */
+        text-align: left; /* 左对齐文本 */
+    }
+
+    th {
+        background-color: #f8f8f8; /* 给表头一个不同的背景色 */
+        color: #333; /* 深色文字 */
+    }
+
+    tr:nth-child(even) {
+        background-color: #f2f2f2; /* 为偶数行添加条纹背景 */
+    }
+
+    /* 当鼠标悬停在表格行上时改变背景色 */
+    tr:hover {
+        background-color: #ddd;
+    }
+
+    </style>
+</head>
+<body>
+    <h2>Quick Acronym/Term Finder</h2>
+    <input type="text" id="searchBox" placeholder="Type any Acronym/Term..." onkeyup="searchItems()" autocomplete="off">
+    <table id="csvTable">
+        <thead>
+            <tr>
+                <th>Acronym/Term</th>
+                <th>Category</th>
+                <th>Definition</th>
+                <th>Variations</th>
+                <th>Notes/Context</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Data rows will be inserted here -->
+        </tbody>
+    </table>
+
+    <script>
+        let itemsData = []; // Store CSV data
+
+        // A more robust CSV parsing approach that accounts for commas within quotes
+        function processData(csvText) {
+            const lines = csvText.split("\n");
+            lines.forEach((line, index) => {
+                if (index > 0 && line) { // Skip the header row
+                    const columns = parseCSVLine(line);
+                    if (columns.length >= 5) { // Ensure there are enough columns
+                        itemsData.push({
+                            acronymTerm: columns[0].trim(),
+                            category: columns[1].trim(),
+                            variations: columns[3].trim(),
+                            definition: columns[2].trim(),
+                            notesContext: columns[4] ? columns[4].trim() : "", // Handle optional fifth column
+                        });
+                    }
+                }
+            });
+            populateTable(itemsData); // Populate table with initial data
+        }
+
+        // Custom function to correctly parse a line of CSV, considering commas within quotes
+        function parseCSVLine(line) {
+            const result = [];
+            let start = 0;
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                if (line[i] === '"' && (i === 0 || line[i-1] !== '\\')) {
+                    inQuotes = !inQuotes; // Toggle state
+                } else if (line[i] === ',' && !inQuotes) {
+                    result.push(line.substring(start, i));
+                    start = i + 1;
+                }
+            }
+            result.push(line.substring(start)); // Add the last field
+            return result.map(field => field.replace(/^"|"$/g, '')); // Remove quotes from fields
+        }
+
+        function populateTable(data) {
+            const tableBody = document.getElementById("csvTable").getElementsByTagName("tbody")[0];
+            tableBody.innerHTML = ""; // Clear existing table rows
+            data.forEach(item => {
+                const row = tableBody.insertRow();
+                Object.values(item).forEach(text => {
+                    const cell = row.insertCell();
+                    cell.textContent = text;
+                });
+            });
+        }
+
+        function searchItems() {
+            const searchInput = document.getElementById("searchBox").value.toUpperCase();
+            const filteredItems = itemsData.filter(item => item.acronymTerm.toUpperCase().includes(searchInput));
+            populateTable(filteredItems); // Repopulate table with filtered data
+        }
+
+        // Fetch CSV data from Google Sheets
+        fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSJQhsYFVIpT02wR7wRkkFxMIIrvJcRzmBBcsNBS6Wub6ReN15sRqnvly1BJCdi_1CDtoO_NbkOBDV4/pub?gid=0&single=true&output=csv')
+            .then(response => response.text())
+            .then(data => processData(data))
+            .catch(error => console.error('Error fetching data:', error));
+    </script>
+</body>
+</html>
