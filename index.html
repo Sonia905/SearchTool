@@ -28,6 +28,19 @@
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 添加轻微的阴影，增加立体感 */
     }
 
+    #categoryFilter {
+        width: auto; /* 自动根据选项内容调整宽度 */
+        max-width: 400px; /* 保持与搜索框相同的最大宽度，以保持界面的一致性 */
+        padding: 10px;
+        margin-bottom: 20px; /* 与搜索框相同的下边距 */
+        border: 2px solid #ddd; /* 与搜索框相同的边框样式 */
+        border-radius: 5px; /* 圆角边框，与搜索框一致 */
+        font-size: 16px; /* 与搜索框相同的字体大小 */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 与搜索框相同的阴影效果 */
+        background-color: #fff; /* 设置背景颜色确保下拉选择框背景不透明 */
+        cursor: pointer; /* 当鼠标悬停时显示指针，提示这是一个可交互的元素 */
+    }
+
     table {
         width: 97%; /* 表格宽度全满 */
         max-width: 97%;
@@ -61,14 +74,17 @@
 <body>
     <h2>Quick Acronym/Term Finder</h2>
     <input type="text" id="searchBox" placeholder="Type any Acronym/Term..." onkeyup="searchItems()" autocomplete="off">
+    <select id="categoryFilter" onchange="searchItems()">
+        <option value="">All Categories</option>
+        <!-- 动态加载的其他选项将在这里 -->
+    </select>
     <table id="csvTable">
         <thead>
             <tr>
                 <th>Acronym/Term</th>
-                <th>Category</th>
                 <th>Definition</th>
-                <th>Variations</th>
                 <th>Notes/Context</th>
+                <th>Category</th>
             </tr>
         </thead>
         <tbody>
@@ -83,20 +99,20 @@
         function processData(csvText) {
             const lines = csvText.split("\n");
             lines.forEach((line, index) => {
-                if (index > 0 && line) { // Skip the header row
+                if (index > 0 && line) { // Skip header row
                     const columns = parseCSVLine(line);
                     if (columns.length >= 5) { // Ensure there are enough columns
                         itemsData.push({
                             acronymTerm: columns[0].trim(),
-                            category: columns[1].trim(),
-                            variations: columns[3].trim(),
-                            definition: columns[2].trim(),
-                            notesContext: columns[4] ? columns[4].trim() : "", // Handle optional fifth column
+                            definition: columns[3].trim(), // Now at index 2 because we skip Variations
+                            notesContext: columns[2] ? columns[2].trim() : "", // Adjusted index
+                            category: columns[1].trim(), // Moved category to the end
                         });
                     }
                 }
             });
             populateTable(itemsData); // Populate table with initial data
+            populateCategoryFilter(itemsData);
         }
 
         // Custom function to correctly parse a line of CSV, considering commas within quotes
@@ -129,8 +145,15 @@
         }
 
         function searchItems() {
-            const searchInput = document.getElementById("searchBox").value.toUpperCase();
-            const filteredItems = itemsData.filter(item => item.acronymTerm.toUpperCase().includes(searchInput));
+            const searchInput = document.getElementById("searchBox").value.toLowerCase();
+            const selectedCategory = document.getElementById("categoryFilter").value;
+
+            const filteredItems = itemsData.filter(item => {
+                const matchesSearch = item.acronymTerm.toLowerCase().includes(searchInput);
+                const matchesCategory = selectedCategory === "" || item.category === selectedCategory;
+                return matchesSearch && matchesCategory;
+            });
+
             populateTable(filteredItems); // Repopulate table with filtered data
         }
 
@@ -139,6 +162,20 @@
             .then(response => response.text())
             .then(data => processData(data))
             .catch(error => console.error('Error fetching data:', error));
+
+
+        function populateCategoryFilter(itemsData) {
+            const categorySet = new Set(itemsData.map(item => item.category));
+            const categoryFilter = document.getElementById('categoryFilter');
+            categorySet.forEach(category => {
+                if (category) { // 防止添加空字符串
+                    const option = document.createElement('option');
+                    option.value = option.textContent = category;
+                    categoryFilter.appendChild(option);
+                }
+            });
+        }
+
     </script>
 </body>
 </html>
